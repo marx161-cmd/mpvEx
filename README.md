@@ -1,6 +1,9 @@
 ![banner](fastlane/metadata/android/en-US/images/featureGraphic.png)
 
 # mpvExtended
+[!NOTE]
+This fork is part of a personal hobby-project collection. It is published because it works for my setup, not because I can guarantee regular maintenance, fast fixes, or long-term support.
+
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/marlboro-advance/mpvex.svg?logo=github&label=GitHub&cacheSeconds=3600)](https://github.com/marlboro-advance/mpvex/releases/latest)
 [![GitHub all releases](https://img.shields.io/github/downloads/marlboro-advance/mpvex/total?logo=github&cacheSeconds=3600)](https://github.com/marlboro-advance/mpvex/releases/latest)
 
