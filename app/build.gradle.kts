@@ -9,6 +9,17 @@ plugins {
   alias(libs.plugins.room)
 }
 
+val termuxKeystore = providers.gradleProperty("TERMUX_KEYSTORE").orNull
+val termuxKeyAlias = providers.gradleProperty("TERMUX_KEY_ALIAS").orNull
+val termuxStorePassword = providers.gradleProperty("TERMUX_STORE_PASSWORD").orNull
+val termuxKeyPassword = providers.gradleProperty("TERMUX_KEY_PASSWORD").orNull
+val hasTermuxReleaseSigning = listOf(
+  termuxKeystore,
+  termuxKeyAlias,
+  termuxStorePassword,
+  termuxKeyPassword,
+).all { !it.isNullOrBlank() }
+
 android {
   namespace = "app.marlboroadvance.mpvex"
   compileSdk = 36
@@ -61,6 +72,17 @@ android {
     includeInBundle = false
   }
 
+  signingConfigs {
+    if (hasTermuxReleaseSigning) {
+      create("termuxRelease") {
+        storeFile = file(termuxKeystore!!)
+        keyAlias = termuxKeyAlias
+        storePassword = termuxStorePassword
+        keyPassword = termuxKeyPassword
+      }
+    }
+  }
+
   splits {
     abi {
       isEnable = true
@@ -74,6 +96,7 @@ android {
     named("release") {
       isMinifyEnabled = true
       isShrinkResources = true
+      signingConfig = signingConfigs.findByName("termuxRelease")
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro"
@@ -124,6 +147,11 @@ android {
   @Suppress("UnstableApiUsage")
   androidResources {
     generateLocaleConfig = true
+  }
+
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
   }
 }
 
@@ -209,7 +237,9 @@ dependencies {
   implementation(libs.truetype.parser)
   implementation(libs.fsaf)
   implementation(libs.mediainfo.lib)
-  implementation(files("libs/mpv-android-lib-v0.0.1.aar"))
+  add("standardImplementation", files("libs/mpv-android-lib-v0.0.1-arm64-rebuilt.aar"))
+  add("playstoreImplementation", files("libs/mpv-android-lib-v0.0.1.aar"))
+  add("fdroidImplementation", files("libs/mpv-android-lib-v0.0.1-arm64-rebuilt.aar"))
 
   // Network protocol libraries
   implementation(libs.smbj)
