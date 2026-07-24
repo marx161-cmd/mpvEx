@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    android:sharedUserId="com.termux">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission
@@ -16,6 +17,11 @@
         tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Signature-level; auto-granted on the platform-signed crDroid build,
+         harmlessly denied elsewhere (widget then relies on notification access). -->
+    <uses-permission
+        android:name="android.permission.MEDIA_CONTENT_CONTROL"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     
@@ -60,6 +66,10 @@
             android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:theme="@style/Theme.mpvex">
+            <layout
+                android:defaultHeight="405dp"
+                android:defaultWidth="720dp"
+                android:gravity="top" />
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -306,5 +316,43 @@
             android:authorities="${applicationId}.networkstreaming"
             android:exported="false"
             android:grantUriPermissions="true" />
+
+        <!-- Home-screen media widget (controls any active media session) -->
+        <receiver
+            android:name=".widget.MediaAppWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_media_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_media_provider" />
+        </receiver>
+
+        <service
+            android:name=".widget.MediaNotificationListener"
+            android:exported="true"
+            android:label="@string/widget_media_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".ui.player.MpvIntentReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.termux.mpv.action.ENTER_FREEFORM" />
+                <action android:name="com.termux.mpv.action.ENTER_PIP" />
+                <action android:name="com.termux.mpv.action.EXIT_FULLSCREEN" />
+                <action android:name="com.termux.mpv.action.TOGGLE_PLAY" />
+                <action android:name="com.termux.mpv.action.TOGGLE_PAUSE" />
+                <action android:name="com.termux.mpv.action.ASPECT_WIDESCREEN" />
+                <action android:name="com.termux.mpv.action.ASPECT_CINEMA" />
+                <action android:name="com.termux.mpv.action.ASPECT_SQUARE" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

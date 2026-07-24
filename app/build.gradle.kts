@@ -25,7 +25,7 @@ android {
   compileSdk = 36
 
   defaultConfig {
-    applicationId = "app.marlboroadvance.mpvex"
+    applicationId = "com.termux.mpv"
     minSdk = 26
     targetSdk = 36
     versionCode = 129
@@ -204,6 +204,7 @@ dependencies {
   implementation(libs.androidx.ui.graphics)
   implementation(libs.androidx.material3.android)
   implementation("com.google.android.material:material:1.13.0")
+  implementation("androidx.palette:palette-ktx:1.0.0")
   implementation(libs.androidx.compose.material)
   implementation(libs.androidx.ui.tooling.preview)
   debugImplementation(libs.androidx.ui.tooling)

@@ -330,6 +330,7 @@ class PlayerActivity :
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     setContentView(binding.root)
+    instance = this
 
     // OPTIMIZATION: Set volume control stream so hardware buttons control media volume
     volumeControlStream = AudioManager.STREAM_MUSIC
@@ -596,7 +597,7 @@ class PlayerActivity :
     }.onFailure { e ->
       Log.e(TAG, "Error during onDestroy", e)
     }
-
+    instance = null
     super.onDestroy()
   }
 
@@ -2410,6 +2411,38 @@ class PlayerActivity :
     pipHelper.enterPipMode()
   }
 
+  var isInFreeform: Boolean = false
+
+  fun enterFreeformMode() {
+    isInFreeform = true
+    window.setBackgroundDrawableResource(android.R.color.transparent)
+    runCatching { player.setZOrderMediaOverlay(true) }
+    runCatching { player.holder.setFormat(android.graphics.PixelFormat.TRANSPARENT) }
+    MPVLib.command("set", "background", "0")
+    binding.root.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+  }
+
+  fun exitToFullscreen() {
+    isInFreeform = false
+    if (isInPictureInPictureMode) {
+      moveTaskToBack(true)
+    }
+    MPVLib.command("set", "background", "0.0")
+    binding.root.setBackgroundColor(android.graphics.Color.BLACK)
+  }
+
+  fun cyclePause() {
+    val paused = MPVLib.getPropertyBoolean("pause") ?: false
+    MPVLib.setPropertyBoolean("pause", !paused)
+  }
+
+  fun setPipAspectRatio(aspect: Float) {
+    val params = android.app.PictureInPictureParams.Builder()
+      .setAspectRatio(android.util.Rational((aspect * 100).toInt(), 100))
+      .build()
+    setPictureInPictureParams(params)
+  }
+
   // ==================== Orientation Management ====================
 
   /**
@@ -3354,5 +3387,8 @@ class PlayerActivity :
      * General tag for logging from PlayerActivity.
      */
     const val TAG = "mpvex"
+
+    @Volatile
+    var instance: PlayerActivity? = null
   }
 }
