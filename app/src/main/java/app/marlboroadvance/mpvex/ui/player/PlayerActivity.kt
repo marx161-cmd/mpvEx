@@ -767,7 +767,7 @@ class PlayerActivity :
 
       if (!noisyReceiverRegistered) {
         val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-        registerReceiver(noisyReceiver, filter)
+        registerReceiver(noisyReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         noisyReceiverRegistered = true
       }
 
@@ -896,6 +896,9 @@ class PlayerActivity :
       Log.d(TAG, "Syncing from user MPV directory: ${tree.uri}")
       syncConfigFiles(tree)
       syncFonts(tree)
+      syncScripts(tree)
+      syncScriptOpts(tree)
+      syncShaders(tree)
       Log.d(TAG, "Full MPV directory sync completed")
     } else {
       // Fallback: use preferences-based config (no user directory set)
@@ -1003,6 +1006,128 @@ class PlayerActivity :
     Log.d(TAG, "Fonts sync: $count file(s) from MPV directory")
   }
 
+  // ==================== Scripts Sync ====================
+
+  /**
+   * Syncs Lua scripts (.lua) from the user's MPV directory to internal storage.
+   * Looks in a scripts/ subfolder (case-insensitive); does nothing if absent.
+   * mpv auto-loads every script under <config-dir>/scripts/ at startup, so no
+   * extra wiring is needed beyond getting the files onto internal storage —
+   * config-dir is already set to filesDir.path in player.initialize().
+   *
+   * Unlike fonts, scripts always overwrite the existing copy: they're small
+   * text files a user is likely actively iterating on, not large binaries
+   * worth skipping to save time/bandwidth.
+   */
+  private fun syncScripts(tree: DocumentFile) {
+    val internalScriptsDir = File(filesDir, "scripts")
+    internalScriptsDir.mkdirs()
+
+    val scriptsSubdir = findSubdirCaseInsensitive(tree, "scripts") ?: return
+    var count = 0
+
+    scriptsSubdir.listFiles().forEach { file ->
+      if (!file.isFile) return@forEach
+      val name = file.name ?: return@forEach
+      if (!name.endsWith(".lua", ignoreCase = true)) return@forEach
+
+      runCatching {
+        contentResolver.openInputStream(file.uri)?.use { input ->
+          File(internalScriptsDir, name).outputStream().use { output ->
+            input.copyTo(output)
+          }
+          count++
+          Log.d(TAG, "Synced script: $name")
+        }
+      }.onFailure { e ->
+        Log.e(TAG, "Error syncing script: $name", e)
+      }
+    }
+
+    Log.d(TAG, "Scripts sync: $count file(s) from MPV directory")
+  }
+
+  // ==================== Script-opts Sync ====================
+
+  /**
+   * Syncs per-script option files (.conf, named <scriptname>.conf per mpv
+   * convention) from the user's MPV directory to internal storage. Same
+   * always-overwrite policy as syncScripts() — small text files, likely under
+   * active iteration.
+   */
+  private fun syncScriptOpts(tree: DocumentFile) {
+    val internalDir = File(filesDir, "script-opts")
+    internalDir.mkdirs()
+
+    val subdir = findSubdirCaseInsensitive(tree, "script-opts") ?: return
+    var count = 0
+
+    subdir.listFiles().forEach { file ->
+      if (!file.isFile) return@forEach
+      val name = file.name ?: return@forEach
+      if (!name.endsWith(".conf", ignoreCase = true)) return@forEach
+
+      runCatching {
+        contentResolver.openInputStream(file.uri)?.use { input ->
+          File(internalDir, name).outputStream().use { output ->
+            input.copyTo(output)
+          }
+          count++
+          Log.d(TAG, "Synced script-opts: $name")
+        }
+      }.onFailure { e ->
+        Log.e(TAG, "Error syncing script-opts: $name", e)
+      }
+    }
+
+    Log.d(TAG, "Script-opts sync: $count file(s) from MPV directory")
+  }
+
+  // ==================== Shaders Sync ====================
+
+  /**
+   * Syncs GLSL shader files (.glsl, .hook) from the user's MPV directory to
+   * internal storage — same folder Anime4KManager's own shaders live in
+   * (see domain/anime4k). .hook is included because mpv-prescalers (RAVU,
+   * RAVU-Lite, etc.) ships its prebuilt shaders with that extension; mpv
+   * itself doesn't care about the extension, only the //!HOOK pragma inside.
+   * Skips files that already exist (shaders are versioned assets a user
+   * drops in once, not actively hand-edited like scripts/config), matching
+   * syncFonts()'s policy.
+   */
+  private fun syncShaders(tree: DocumentFile) {
+    val internalDir = File(filesDir, "shaders")
+    internalDir.mkdirs()
+
+    val subdir = findSubdirCaseInsensitive(tree, "shaders") ?: return
+    var count = 0
+    val shaderExtensions = setOf("glsl", "hook")
+
+    subdir.listFiles().forEach { file ->
+      if (!file.isFile) return@forEach
+      val name = file.name ?: return@forEach
+      val ext = name.substringAfterLast('.', "").lowercase()
+      if (ext !in shaderExtensions) return@forEach
+
+      val target = File(internalDir, name)
+      if (target.exists()) return@forEach
+
+      runCatching {
+        contentResolver.openInputStream(file.uri)?.use { input ->
+          target.outputStream().use { output ->
+            input.copyTo(output)
+          }
+          count++
+          Log.d(TAG, "Synced shader: $name")
+        }
+      }.onFailure { e ->
+        Log.e(TAG, "Error syncing shader: $name", e)
+      }
+    }
+
+    Log.d(TAG, "Shaders sync: $count file(s) from MPV directory")
+  }
+
   // ==================== Helpers ====================
 
   /**
@@ -1020,8 +1145,12 @@ class PlayerActivity :
         val content = advancedPreferences.inputConf.get()
         if (content.isNotBlank()) writeText(content)
       }
-      // Ensure fonts directory exists even without user dir
+      // Ensure fonts/scripts/script-opts/shaders directories exist even
+      // without a user dir configured
       File(filesDir, "fonts").mkdirs()
+      File(filesDir, "scripts").mkdirs()
+      File(filesDir, "script-opts").mkdirs()
+      File(filesDir, "shaders").mkdirs()
     }.onFailure { e ->
       Log.e(TAG, "Error creating fallback config files", e)
     }

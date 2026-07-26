@@ -175,12 +175,12 @@ object WidgetSessionHub {
     listenerComponent: ComponentName,
   ): List<MediaController>? =
     try {
-      manager.getActiveSessions(listenerComponent)
+      manager.getActiveSessions(null)
     } catch (e: SecurityException) {
       try {
-        manager.getActiveSessions(null)
+        manager.getActiveSessions(listenerComponent)
       } catch (e2: SecurityException) {
-        Log.w(TAG, "No media session access (listener disabled, MEDIA_CONTENT_CONTROL not granted)")
+        Log.w(TAG, "No media session access (MEDIA_CONTENT_CONTROL denied, listener not enabled)")
         null
       }
     }
